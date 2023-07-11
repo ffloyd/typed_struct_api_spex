@@ -9,17 +9,17 @@ defmodule TypedStructApiSpex.TypeToSchema do
     end
   end
 
-  @spec transform(Macro.t()) :: {:ok, Schema.t()} | :error
+  @spec transform(Macro.t()) :: {:ok, Schema.t()} | {:error, type_str :: String.t()}
   def transform(ast)
 
   # handles `ModName.t()` cases
-  def transform({{:., _, [{:__aliases__, _, [mod]}, :t]}, _, []}) do
+  def transform({{:., _, [{:__aliases__, _, [mod]}, :t]}, _, []} = ast) do
     case mod do
       :String ->
         {:ok, %Schema{type: :string}}
 
       _ ->
-        :error
+        {:error, Macro.to_string(ast)}
     end
   end
 
@@ -43,7 +43,7 @@ defmodule TypedStructApiSpex.TypeToSchema do
   def transform({:list, _, [type]}) do
     case transform(type) do
       {:ok, schema} -> {:ok, list(schema)}
-      :error -> :error
+      error -> error
     end
   end
 
@@ -52,14 +52,14 @@ defmodule TypedStructApiSpex.TypeToSchema do
   def transform([type]) do
     case transform(type) do
       {:ok, schema} -> {:ok, list(schema)}
-      :error -> :error
+      error -> error
     end
   end
 
   def transform([type, {:..., _, nil}]) do
     case transform(type) do
       {:ok, schema} -> {:ok, nonempty_list(schema)}
-      :error -> :error
+      error -> error
     end
   end
 
@@ -68,7 +68,7 @@ defmodule TypedStructApiSpex.TypeToSchema do
       IO.inspect(ast, label: "unhandled type AST", syntax_colors: IO.ANSI.syntax_colors())
     end
 
-    :error
+    {:error, Macro.to_string(ast)}
   end
 
   defp list, do: %Schema{type: :array, items: %Schema{}}
