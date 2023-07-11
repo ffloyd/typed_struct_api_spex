@@ -23,11 +23,57 @@ defmodule TypedStructApiSpex.TypeToSchema do
     end
   end
 
+  def transform({:any, _, []}), do: {:ok, %Schema{}}
+
+  def transform({:atom, _, []}), do: {:ok, %Schema{type: :string}}
+
+  def transform({:integer, _, []}), do: {:ok, %Schema{type: :integer}}
+  def transform({:neg_integer, _, []}), do: {:ok, %Schema{type: :integer, maximum: -1}}
+  def transform({:non_neg_integer, _, []}), do: {:ok, %Schema{type: :integer, minimum: 0}}
+  def transform({:pos_integer, _, []}), do: {:ok, %Schema{type: :integer, minimum: 1}}
+  def transform({:float, _, []}), do: {:ok, %Schema{type: :number}}
+
+  def transform({:boolean, _, []}), do: {:ok, %Schema{type: :boolean}}
+
+  def transform({:map, _, []}), do: {:ok, %Schema{type: :object, additionalProperties: true}}
+
+  def transform({:list, _, []}), do: {:ok, list()}
+  def transform({:nonempty_list, _, []}), do: {:ok, nonempty_list()}
+
+  def transform({:list, _, [type]}) do
+    case transform(type) do
+      {:ok, schema} -> {:ok, list(schema)}
+      :error -> :error
+    end
+  end
+
+  def transform([{:..., _, nil}]), do: {:ok, nonempty_list()}
+
+  def transform([type]) do
+    case transform(type) do
+      {:ok, schema} -> {:ok, list(schema)}
+      :error -> :error
+    end
+  end
+
+  def transform([type, {:..., _, nil}]) do
+    case transform(type) do
+      {:ok, schema} -> {:ok, nonempty_list(schema)}
+      :error -> :error
+    end
+  end
+
   def transform(ast) do
     only_in_test do
-      IO.inspect(ast, label: "unhandled type", syntax_colors: IO.ANSI.syntax_colors())
+      IO.inspect(ast, label: "unhandled type AST", syntax_colors: IO.ANSI.syntax_colors())
     end
 
     :error
   end
+
+  defp list, do: %Schema{type: :array, items: %Schema{}}
+  defp list(schema), do: %Schema{type: :array, items: schema}
+
+  defp nonempty_list, do: %Schema{type: :array, items: %Schema{}, minItems: 1}
+  defp nonempty_list(schema), do: %Schema{type: :array, items: schema, minItems: 1}
 end

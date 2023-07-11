@@ -30,7 +30,7 @@ defmodule TypedStructApiSpex do
           "Elixir." <> module_name = env.module |> to_string()
 
           Logger.warn(
-            "Field `#{name}` of struct `#{module_name}`: type `#{Macro.to_string(type)}` cannot be automatically transformed into OpenAPI schema. Falling back to empty schema (empty schema represents \"any\" type)"
+            "Field `#{name}` of struct `#{module_name}` with type `#{Macro.to_string(type)}` cannot be automatically annotated with OpenAPI schema. Falling back to empty schema (empty schema represents \"any\" type)"
           )
 
           %OpenApiSpex.Schema{}
@@ -53,6 +53,7 @@ defmodule TypedStructApiSpex do
           title: module_name,
           type: :object,
           description: @moduledoc,
+          required: @enforce_keys,
           properties: Map.new(@typed_struct_api_spex_fields)
         }
       end
