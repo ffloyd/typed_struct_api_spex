@@ -14,7 +14,9 @@ defmodule TypedStructApiSpex.TypeToSchema do
   @spec transform(Macro.t()) :: {:ok, Schema.t()} | {:error, type_str :: String.t()}
   def transform(ast)
 
-  # handles `ModName.t()` cases
+  #
+  # `ModName.t()` cases
+  #
   def transform({{:., _, [{:__aliases__, _, [mod]}, :t]}, _, []} = ast) do
     case mod do
       :String ->
@@ -25,6 +27,9 @@ defmodule TypedStructApiSpex.TypeToSchema do
     end
   end
 
+  #
+  # basic types except collections
+  #
   def transform({:any, _, []}), do: {:ok, %Schema{}}
 
   def transform({:atom, _, []}), do: {:ok, %Schema{type: :string}}
@@ -37,8 +42,9 @@ defmodule TypedStructApiSpex.TypeToSchema do
 
   def transform({:boolean, _, []}), do: {:ok, %Schema{type: :boolean}}
 
-  def transform({:map, _, []}), do: {:ok, %Schema{type: :object, additionalProperties: true}}
-
+  #
+  # Lists
+  #
   def transform({:list, _, []}), do: {:ok, list()}
   def transform({:nonempty_list, _, []}), do: {:ok, nonempty_list()}
 
@@ -65,6 +71,11 @@ defmodule TypedStructApiSpex.TypeToSchema do
     end
   end
 
+  #
+  # Maps
+  #
+  def transform({:map, _, []}), do: {:ok, %Schema{type: :object, additionalProperties: true}}
+
   def transform({:%{}, _, []}), do: {:ok, %Schema{type: :object}}
 
   def transform({:%{}, _, children} = ast) do
@@ -81,6 +92,9 @@ defmodule TypedStructApiSpex.TypeToSchema do
     end
   end
 
+  #
+  # Unhandled types results in error
+  #
   def transform(ast) do
     only_in_test do
       # credo:disable-for-next-line
