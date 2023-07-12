@@ -23,7 +23,8 @@ defmodule TypedStructApiSpex.MixProject do
     [
       {:typed_struct, "~> 0.3"},
       {:open_api_spex, "~> 3.17"},
-      {:jason, "~> 1.0", optional: true}
+      {:jason, "~> 1.0", only: [:dev, :test]},
+      {:credo, "~> 1.7", only: :dev, runtime: false}
     ]
   end
 end

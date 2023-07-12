@@ -1,4 +1,6 @@
 defmodule TypedStructApiSpex.TypeToSchema do
+  @moduledoc false
+
   alias OpenApiSpex.Schema
 
   defmacrop only_in_test(do: block) do
@@ -81,6 +83,7 @@ defmodule TypedStructApiSpex.TypeToSchema do
 
   def transform(ast) do
     only_in_test do
+      # credo:disable-for-next-line
       IO.inspect(ast, label: "unhandled type AST", syntax_colors: IO.ANSI.syntax_colors())
     end
 
