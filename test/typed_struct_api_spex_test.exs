@@ -155,4 +155,48 @@ defmodule TypedStructApiSpexTest do
                }
     end
   end
+
+  describe "struct with 1-level map types" do
+    defmodule SimpleMaps do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :an_empty_map, %{}
+        field :a_map_with_atom_keys, %{key_a: integer(), key_b: String.t()}
+        field :a_map_with_required_pairs, %{String.t() => float()}
+        field :another_map_with_required_pairs, %{required(String.t()) => float()}
+        field :a_map_with_optional_pairs, %{optional(String.t()) => float()}
+      end
+    end
+
+    test "translates_types_correctly" do
+      assert SimpleMaps.schema().properties == %{
+               an_empty_map: %Schema{
+                 type: :object
+               },
+               a_map_with_atom_keys: %Schema{
+                 type: :object,
+                 required: [:key_a, :key_b],
+                 properties: %{
+                   key_a: %Schema{type: :integer},
+                   key_b: %Schema{type: :string}
+                 }
+               },
+               a_map_with_required_pairs: %Schema{
+                 type: :object,
+                 additionalProperties: %Schema{type: :number}
+               },
+               another_map_with_required_pairs: %Schema{
+                 type: :object,
+                 additionalProperties: %Schema{type: :number}
+               },
+               a_map_with_optional_pairs: %Schema{
+                 type: :object,
+                 additionalProperties: %Schema{type: :number}
+               }
+             }
+    end
+  end
 end

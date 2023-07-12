@@ -63,6 +63,22 @@ defmodule TypedStructApiSpex.TypeToSchema do
     end
   end
 
+  def transform({:%{}, _, []}), do: {:ok, %Schema{type: :object}}
+
+  def transform({:%{}, _, children} = ast) do
+    if Keyword.keyword?(children) do
+      transform_map_with_keys(children)
+    else
+      case children do
+        [{_, value_type}] ->
+          transform_map_with_pairs(value_type)
+
+        _ ->
+          {:error, Macro.to_string(ast)}
+      end
+    end
+  end
+
   def transform(ast) do
     only_in_test do
       IO.inspect(ast, label: "unhandled type AST", syntax_colors: IO.ANSI.syntax_colors())
@@ -76,4 +92,38 @@ defmodule TypedStructApiSpex.TypeToSchema do
 
   defp nonempty_list, do: %Schema{type: :array, items: %Schema{}, minItems: 1}
   defp nonempty_list(schema), do: %Schema{type: :array, items: schema, minItems: 1}
+
+  defp transform_map_with_keys(children) do
+    props_or_error =
+      children
+      |> Enum.reduce_while(%{}, fn {key, type}, acc ->
+        case transform(type) do
+          {:ok, schema} -> {:cont, Map.put(acc, key, schema)}
+          error -> {:halt, error}
+        end
+      end)
+
+    case props_or_error do
+      props when is_map(props) ->
+        {:ok,
+         %Schema{
+           type: :object,
+           required: Map.keys(props),
+           properties: props
+         }}
+
+      error ->
+        error
+    end
+  end
+
+  defp transform_map_with_pairs(value_type) do
+    case transform(value_type) do
+      {:ok, value_schema} ->
+        {:ok, %Schema{type: :object, additionalProperties: value_schema}}
+
+      error ->
+        error
+    end
+  end
 end
