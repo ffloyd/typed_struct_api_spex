@@ -263,4 +263,22 @@ defmodule TypedStructApiSpexTest do
              }
     end
   end
+
+  describe "struct with schema overrides" do
+    defmodule WithOverride do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :with_override, String.t(), schema: %Schema{type: :string, format: :date}
+      end
+    end
+
+    test "uses provided schema" do
+      assert WithOverride.schema().properties == %{
+               with_override: %Schema{type: :string, format: :date}
+             }
+    end
+  end
 end

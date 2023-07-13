@@ -20,25 +20,26 @@ defmodule TypedStructApiSpex do
 
   @impl true
   @spec field(atom(), any(), keyword(), Macro.Env.t()) :: Macro.t()
-  def field(name, type, _opts, env) do
+  def field(name, type, opts, env) do
     schema_for_type =
-      case TypeToSchema.transform(type) do
-        {:ok, schema} ->
-          schema
+      Keyword.get(opts, :schema) ||
+        case TypeToSchema.transform(type) do
+          {:ok, schema} ->
+            schema
 
-        {:error, type_str} ->
-          "Elixir." <> module_name = env.module |> to_string()
+          {:error, type_str} ->
+            "Elixir." <> module_name = env.module |> to_string()
 
-          Logger.warn("""
-          The following type cannot be automatically converted to OpenAPI schema:
+            Logger.warn("""
+            The following type cannot be automatically converted to OpenAPI schema:
 
-              #{type_str}
+                #{type_str}
 
-          As a fallback field `#{name}` of struct `#{module_name}` will use "any" type.
-          """)
+            As a fallback field `#{name}` of struct `#{module_name}` will use "any" type.
+            """)
 
-          %OpenApiSpex.Schema{}
-      end
+            %OpenApiSpex.Schema{}
+        end
 
     quote do
       @typed_struct_api_spex_fields {unquote(name), unquote(Macro.escape(schema_for_type))}
