@@ -232,4 +232,35 @@ defmodule TypedStructApiSpexTest do
              }
     end
   end
+
+  describe "struct with an atom enums" do
+    defmodule AtomEnum do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :an_atom_enum, :enabled | :disabled
+        field :a_long_atom_enum, :red | :green | :blue | :alpha
+        field :an_enum_with_nil, :a | :b | nil
+      end
+    end
+
+    test "translates types correctly" do
+      assert AtomEnum.schema().properties == %{
+               an_atom_enum: %Schema{
+                 type: :string,
+                 enum: ["enabled", "disabled"]
+               },
+               a_long_atom_enum: %Schema{
+                 type: :string,
+                 enum: ["red", "green", "blue", "alpha"]
+               },
+               an_enum_with_nil: %Schema{
+                 type: :string,
+                 enum: ["a", "b", nil]
+               }
+             }
+    end
+  end
 end

@@ -108,6 +108,30 @@ defmodule TypedStructApiSpex.TypeToSchema do
   end
 
   #
+  # Enums
+  #
+  def transform({:|, _, _} = ast) do
+    ast_list = flat_pipe(ast)
+
+    if Enum.all?(ast_list, &is_atom/1) do
+      list =
+        ast_list
+        |> Enum.map(fn
+          nil -> nil
+          atom -> to_string(atom)
+        end)
+
+      {:ok,
+       %Schema{
+         type: :string,
+         enum: list
+       }}
+    else
+      {:error, Macro.to_string(ast)}
+    end
+  end
+
+  #
   # Unhandled types results in error
   #
   def transform(ast) do
@@ -158,4 +182,14 @@ defmodule TypedStructApiSpex.TypeToSchema do
         error
     end
   end
+
+  # transforms ast of code like `x | y | z` into array of asts [`x`, `y`, `z`]
+  @spec flat_pipe(Macro.t()) :: [Macro.t()]
+  defp flat_pipe(ast)
+
+  defp flat_pipe({:|, _, [left, right]}) do
+    flat_pipe(left) ++ flat_pipe(right)
+  end
+
+  defp flat_pipe(ast), do: [ast]
 end
