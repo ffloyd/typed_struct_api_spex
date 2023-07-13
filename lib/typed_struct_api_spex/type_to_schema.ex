@@ -93,6 +93,21 @@ defmodule TypedStructApiSpex.TypeToSchema do
   end
 
   #
+  # Literals
+  #
+  def transform(ast) when is_atom(ast) do
+    {:ok, %Schema{type: :string, enum: [to_string(ast)]}}
+  end
+
+  def transform(ast) when is_integer(ast) do
+    {:ok, %Schema{type: :integer, minimum: ast, maximum: ast}}
+  end
+
+  def transform({:.., _, [min, max]}) do
+    {:ok, %Schema{type: :integer, minimum: min, maximum: max}}
+  end
+
+  #
   # Unhandled types results in error
   #
   def transform(ast) do

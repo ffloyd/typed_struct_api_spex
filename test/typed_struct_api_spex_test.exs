@@ -171,7 +171,7 @@ defmodule TypedStructApiSpexTest do
       end
     end
 
-    test "translates_types_correctly" do
+    test "translates types correctly" do
       assert SimpleMaps.schema().properties == %{
                an_empty_map: %Schema{
                  type: :object
@@ -195,6 +195,39 @@ defmodule TypedStructApiSpexTest do
                a_map_with_optional_pairs: %Schema{
                  type: :object,
                  additionalProperties: %Schema{type: :number}
+               }
+             }
+    end
+  end
+
+  describe "struct with simple literal types" do
+    defmodule Literals do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :a_single_atom, :some_atom
+        field :a_single_integer, 10
+        field :a_range, 10..20
+      end
+    end
+
+    test "translates types correctly" do
+      assert Literals.schema().properties == %{
+               a_single_atom: %Schema{
+                 type: :string,
+                 enum: ["some_atom"]
+               },
+               a_single_integer: %Schema{
+                 type: :integer,
+                 minimum: 10,
+                 maximum: 10
+               },
+               a_range: %Schema{
+                 type: :integer,
+                 minimum: 10,
+                 maximum: 20
                }
              }
     end
