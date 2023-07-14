@@ -11,19 +11,20 @@ defmodule TypedStructApiSpex.TypeToSchema do
     end
   end
 
-  @spec transform(Macro.t()) :: {:ok, Schema.t()} | {:error, type_str :: String.t()}
+  @spec transform(Macro.t()) ::
+          {:ok, Schema.t()} | {:ok, :mod_name_ast, Macro.t()} | {:error, type_str :: String.t()}
   def transform(ast)
 
   #
   # `ModName.t()` cases
   #
-  def transform({{:., _, [{:__aliases__, _, [mod]}, :t]}, _, []} = ast) do
+  def transform({{:., _, [{:__aliases__, _, [mod]} = mod_name_ast, :t]}, _, []}) do
     case mod do
       :String ->
         {:ok, %Schema{type: :string}}
 
       _ ->
-        {:error, Macro.to_string(ast)}
+        {:ok, :mod_name_ast, mod_name_ast}
     end
   end
 

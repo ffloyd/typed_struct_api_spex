@@ -4,6 +4,8 @@ defmodule TypedStructApiSpex do
   """
   use TypedStruct.Plugin
 
+  alias OpenApiSpex.Schema
+
   alias TypedStructApiSpex.TypeToSchema
 
   require Logger
@@ -20,29 +22,60 @@ defmodule TypedStructApiSpex do
 
   @impl true
   @spec field(atom(), any(), keyword(), Macro.Env.t()) :: Macro.t()
-  def field(name, type, opts, env) do
-    schema_for_type =
+  def field(field_name, type, opts, env) do
+    module_name = env.module |> inspect()
+
+    schema =
       Keyword.get(opts, :schema) ||
         case TypeToSchema.transform(type) do
           {:ok, schema} ->
             schema
 
-          {:error, type_str} ->
-            "Elixir." <> module_name = env.module |> to_string()
+          {:ok, :mod_name_ast, ast} ->
+            module_name_ast_to_schema(module_name, field_name, ast, env)
 
+          {:error, type_str} ->
             Logger.warn("""
             The following type cannot be automatically converted to OpenAPI schema:
 
                 #{type_str}
 
-            As a fallback field `#{name}` of struct `#{module_name}` will use "any" type.
+            As a fallback field `#{field_name}` of struct `#{module_name}` will use "any" type.
             """)
 
-            %OpenApiSpex.Schema{}
+            %Schema{}
         end
 
     quote do
-      @typed_struct_api_spex_fields {unquote(name), unquote(Macro.escape(schema_for_type))}
+      @typed_struct_api_spex_fields {unquote(field_name), unquote(Macro.escape(schema))}
+    end
+  end
+
+  defp module_name_ast_to_schema(module_name, field_name, module_name_ast, env) do
+    module = Macro.expand(module_name_ast, env)
+
+    case Code.ensure_compiled(module) do
+      {:module, _} ->
+        if function_exported?(module, :schema, 0) do
+          module
+        else
+          Logger.warn("""
+          The following module has no `schema/0` implementation: #{module |> inspect()}.
+          Might be you forget to add `plugin TypedStructApiSpex` or implement `OpenApiSpex.Schema` behaviour.
+          As a fallback field `#{field_name}` of struct `#{module_name}` will use "any" type.
+          """)
+
+          %Schema{}
+        end
+
+      {:error, _} ->
+        Logger.warn("""
+        The following module is not compiled: #{module |> inspect()}.
+        It can happen when module defined in the same file, but after its first usage.
+        As a fallback field `#{field_name}` of struct `#{module_name}` will use "any" type.
+        """)
+
+        %Schema{}
     end
   end
 

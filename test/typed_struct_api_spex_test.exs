@@ -281,4 +281,44 @@ defmodule TypedStructApiSpexTest do
              }
     end
   end
+
+  describe "struct with another struct as a field" do
+    defmodule NestedOne do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :a_string, String.t()
+      end
+    end
+
+    defmodule WithoutPlugin do
+      use TypedStruct
+
+      typedstruct do
+        field :a_string, String.t()
+      end
+    end
+
+    defmodule WithNested do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :a_struct, NestedOne.t()
+        field :a_struct_without_schema, WithoutPlugin.t()
+        field :a_missing_module, IAmMissing.t()
+      end
+    end
+
+    test "translates types correctly" do
+      assert WithNested.schema().properties == %{
+               a_struct: NestedOne,
+               a_struct_without_schema: %Schema{},
+               a_missing_module: %Schema{}
+             }
+    end
+  end
 end
