@@ -11,62 +11,61 @@ defmodule TypedStructApiSpex.TypeToSchema do
     end
   end
 
-  @spec transform(Macro.t()) ::
-          {:ok, Schema.t()} | {:ok, :mod_name_ast, Macro.t()} | {:error, type_str :: String.t()}
-  def transform(ast)
+  @spec transform(Macro.t(), Macro.Env.t()) ::
+          {:ok, Schema.t()}
+          | {:error, type_str :: String.t()}
+          | {:error, :module_without_schema, module()}
+          | {:error, :module_missing, module()}
+  def transform(ast, env)
 
   #
   # `ModName.t()` cases
   #
-  def transform({{:., _, [{:__aliases__, _, [mod]} = mod_name_ast, :t]}, _, []}) do
-    case mod do
-      :String ->
-        {:ok, %Schema{type: :string}}
-
-      _ ->
-        {:ok, :mod_name_ast, mod_name_ast}
-    end
+  def transform({{:., _, [{:__aliases__, _, [_]} = mod_name_ast, :t]}, _, []}, env) do
+    mod_name_ast
+    |> Macro.expand(env)
+    |> module_schema()
   end
 
   #
   # basic types except collections
   #
-  def transform({:any, _, []}), do: {:ok, %Schema{}}
+  def transform({:any, _, []}, _), do: {:ok, %Schema{}}
 
-  def transform({:atom, _, []}), do: {:ok, %Schema{type: :string}}
+  def transform({:atom, _, []}, _), do: {:ok, %Schema{type: :string}}
 
-  def transform({:integer, _, []}), do: {:ok, %Schema{type: :integer}}
-  def transform({:neg_integer, _, []}), do: {:ok, %Schema{type: :integer, maximum: -1}}
-  def transform({:non_neg_integer, _, []}), do: {:ok, %Schema{type: :integer, minimum: 0}}
-  def transform({:pos_integer, _, []}), do: {:ok, %Schema{type: :integer, minimum: 1}}
-  def transform({:float, _, []}), do: {:ok, %Schema{type: :number}}
+  def transform({:integer, _, []}, _), do: {:ok, %Schema{type: :integer}}
+  def transform({:neg_integer, _, []}, _), do: {:ok, %Schema{type: :integer, maximum: -1}}
+  def transform({:non_neg_integer, _, []}, _), do: {:ok, %Schema{type: :integer, minimum: 0}}
+  def transform({:pos_integer, _, []}, _), do: {:ok, %Schema{type: :integer, minimum: 1}}
+  def transform({:float, _, []}, _), do: {:ok, %Schema{type: :number}}
 
-  def transform({:boolean, _, []}), do: {:ok, %Schema{type: :boolean}}
+  def transform({:boolean, _, []}, _), do: {:ok, %Schema{type: :boolean}}
 
   #
   # Lists
   #
-  def transform({:list, _, []}), do: {:ok, list()}
-  def transform({:nonempty_list, _, []}), do: {:ok, nonempty_list()}
+  def transform({:list, _, []}, _), do: {:ok, list()}
+  def transform({:nonempty_list, _, []}, _), do: {:ok, nonempty_list()}
 
-  def transform({:list, _, [type]}) do
-    case transform(type) do
+  def transform({:list, _, [type]}, env) do
+    case transform(type, env) do
       {:ok, schema} -> {:ok, list(schema)}
       error -> error
     end
   end
 
-  def transform([{:..., _, nil}]), do: {:ok, nonempty_list()}
+  def transform([{:..., _, nil}], _), do: {:ok, nonempty_list()}
 
-  def transform([type]) do
-    case transform(type) do
+  def transform([type], env) do
+    case transform(type, env) do
       {:ok, schema} -> {:ok, list(schema)}
       error -> error
     end
   end
 
-  def transform([type, {:..., _, nil}]) do
-    case transform(type) do
+  def transform([type, {:..., _, nil}], env) do
+    case transform(type, env) do
       {:ok, schema} -> {:ok, nonempty_list(schema)}
       error -> error
     end
@@ -75,17 +74,17 @@ defmodule TypedStructApiSpex.TypeToSchema do
   #
   # Maps
   #
-  def transform({:map, _, []}), do: {:ok, %Schema{type: :object, additionalProperties: true}}
+  def transform({:map, _, []}, _), do: {:ok, %Schema{type: :object, additionalProperties: true}}
 
-  def transform({:%{}, _, []}), do: {:ok, %Schema{type: :object}}
+  def transform({:%{}, _, []}, _), do: {:ok, %Schema{type: :object}}
 
-  def transform({:%{}, _, children} = ast) do
+  def transform({:%{}, _, children} = ast, env) do
     if Keyword.keyword?(children) do
-      transform_map_with_keys(children)
+      transform_map_with_keys(children, env)
     else
       case children do
         [{_, value_type}] ->
-          transform_map_with_pairs(value_type)
+          transform_map_with_pairs(value_type, env)
 
         _ ->
           {:error, Macro.to_string(ast)}
@@ -96,22 +95,22 @@ defmodule TypedStructApiSpex.TypeToSchema do
   #
   # Literals
   #
-  def transform(ast) when is_atom(ast) do
+  def transform(ast, _) when is_atom(ast) do
     {:ok, %Schema{type: :string, enum: [to_string(ast)]}}
   end
 
-  def transform(ast) when is_integer(ast) do
+  def transform(ast, _) when is_integer(ast) do
     {:ok, %Schema{type: :integer, minimum: ast, maximum: ast}}
   end
 
-  def transform({:.., _, [min, max]}) do
+  def transform({:.., _, [min, max]}, _) do
     {:ok, %Schema{type: :integer, minimum: min, maximum: max}}
   end
 
   #
   # Enums
   #
-  def transform({:|, _, _} = ast) do
+  def transform({:|, _, _} = ast, _) do
     ast_list = flat_pipe(ast)
 
     if Enum.all?(ast_list, &is_atom/1) do
@@ -135,7 +134,7 @@ defmodule TypedStructApiSpex.TypeToSchema do
   #
   # Unhandled types results in error
   #
-  def transform(ast) do
+  def transform(ast, _) do
     only_in_test do
       # credo:disable-for-next-line
       IO.inspect(ast, label: "unhandled type AST", syntax_colors: IO.ANSI.syntax_colors())
@@ -144,17 +143,35 @@ defmodule TypedStructApiSpex.TypeToSchema do
     {:error, Macro.to_string(ast)}
   end
 
+  defp module_schema(module)
+
+  defp module_schema(String), do: {:ok, %Schema{type: :string}}
+
+  defp module_schema(module) do
+    case Code.ensure_compiled(module) do
+      {:module, _} ->
+        if function_exported?(module, :schema, 0) do
+          {:ok, module}
+        else
+          {:error, :module_without_schema, module}
+        end
+
+      {:error, _} ->
+        {:error, :module_missing, module}
+    end
+  end
+
   defp list, do: %Schema{type: :array, items: %Schema{}}
   defp list(schema), do: %Schema{type: :array, items: schema}
 
   defp nonempty_list, do: %Schema{type: :array, items: %Schema{}, minItems: 1}
   defp nonempty_list(schema), do: %Schema{type: :array, items: schema, minItems: 1}
 
-  defp transform_map_with_keys(children) do
+  defp transform_map_with_keys(children, env) do
     props_or_error =
       children
       |> Enum.reduce_while(%{}, fn {key, type}, acc ->
-        case transform(type) do
+        case transform(type, env) do
           {:ok, schema} -> {:cont, Map.put(acc, key, schema)}
           error -> {:halt, error}
         end
@@ -174,8 +191,8 @@ defmodule TypedStructApiSpex.TypeToSchema do
     end
   end
 
-  defp transform_map_with_pairs(value_type) do
-    case transform(value_type) do
+  defp transform_map_with_pairs(value_type, env) do
+    case transform(value_type, env) do
       {:ok, value_schema} ->
         {:ok, %Schema{type: :object, additionalProperties: value_schema}}
 

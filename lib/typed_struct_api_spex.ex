@@ -27,12 +27,9 @@ defmodule TypedStructApiSpex do
 
     schema =
       Keyword.get(opts, :schema) ||
-        case TypeToSchema.transform(type) do
+        case TypeToSchema.transform(type, env) do
           {:ok, schema} ->
             schema
-
-          {:ok, :mod_name_ast, ast} ->
-            module_name_ast_to_schema(module_name, field_name, ast, env)
 
           {:error, type_str} ->
             Logger.warn("""
@@ -44,38 +41,28 @@ defmodule TypedStructApiSpex do
             """)
 
             %Schema{}
+
+          {:error, :module_without_schema, module} ->
+            Logger.warn("""
+            The following module has no `schema/0` implementation: #{module |> inspect()}.
+            Might be you forget to add `plugin TypedStructApiSpex` or implement `OpenApiSpex.Schema` behaviour.
+            As a fallback field `#{field_name}` of struct `#{module_name}` will use "any" type.
+            """)
+
+            %Schema{}
+
+          {:error, :module_missing, module} ->
+            Logger.warn("""
+            The following module is not compiled: #{module |> inspect()}.
+            It can happen when module defined in the same file, but after its first usage.
+            As a fallback field `#{field_name}` of struct `#{module_name}` will use "any" type.
+            """)
+
+            %Schema{}
         end
 
     quote do
       @typed_struct_api_spex_fields {unquote(field_name), unquote(Macro.escape(schema))}
-    end
-  end
-
-  defp module_name_ast_to_schema(module_name, field_name, module_name_ast, env) do
-    module = Macro.expand(module_name_ast, env)
-
-    case Code.ensure_compiled(module) do
-      {:module, _} ->
-        if function_exported?(module, :schema, 0) do
-          module
-        else
-          Logger.warn("""
-          The following module has no `schema/0` implementation: #{module |> inspect()}.
-          Might be you forget to add `plugin TypedStructApiSpex` or implement `OpenApiSpex.Schema` behaviour.
-          As a fallback field `#{field_name}` of struct `#{module_name}` will use "any" type.
-          """)
-
-          %Schema{}
-        end
-
-      {:error, _} ->
-        Logger.warn("""
-        The following module is not compiled: #{module |> inspect()}.
-        It can happen when module defined in the same file, but after its first usage.
-        As a fallback field `#{field_name}` of struct `#{module_name}` will use "any" type.
-        """)
-
-        %Schema{}
     end
   end
 

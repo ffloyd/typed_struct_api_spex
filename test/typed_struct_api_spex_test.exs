@@ -321,4 +321,35 @@ defmodule TypedStructApiSpexTest do
              }
     end
   end
+
+  describe "struct with another struct as a component of list" do
+    defmodule Simple do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :a_string, String.t()
+      end
+    end
+
+    defmodule WithList do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :a_list_of_structs, [Simple.t()]
+      end
+    end
+
+    test "translates types correctly" do
+      assert WithList.schema().properties == %{
+               a_list_of_structs: %Schema{
+                 type: :array,
+                 items: Simple
+               }
+             }
+    end
+  end
 end
