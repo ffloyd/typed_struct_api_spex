@@ -352,4 +352,46 @@ defmodule TypedStructApiSpexTest do
              }
     end
   end
+
+  describe "struct with another struct as a component of nested map" do
+    defmodule Simple do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :a_string, String.t()
+      end
+    end
+
+    defmodule ComplexOne do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :a_complex_field, %{a: String.t(), b: %{x: integer(), y: Simple.t()}}
+      end
+    end
+
+    test "translates types correctly" do
+      assert ComplexOne.schema().properties == %{
+               a_complex_field: %Schema{
+                 type: :object,
+                 required: [:a, :b],
+                 properties: %{
+                   a: %Schema{type: :string},
+                   b: %Schema{
+                     type: :object,
+                     required: [:x, :y],
+                     properties: %{
+                       x: %Schema{type: :integer},
+                       y: Simple
+                     }
+                   }
+                 }
+               }
+             }
+    end
+  end
 end
