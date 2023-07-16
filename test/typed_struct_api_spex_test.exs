@@ -3,6 +3,26 @@ defmodule TypedStructApiSpexTest do
 
   alias OpenApiSpex.Schema
 
+  defmodule StructWithSchemaA do
+    use TypedStruct
+
+    typedstruct do
+      plugin TypedStructApiSpex
+
+      field :a_field, String.t()
+    end
+  end
+
+  defmodule StructWithSchemaB do
+    use TypedStruct
+
+    typedstruct do
+      plugin TypedStructApiSpex
+
+      field :a_field, number()
+    end
+  end
+
   describe "struct with one string field and moduledoc" do
     defmodule OneStringField do
       @moduledoc """
@@ -52,6 +72,7 @@ defmodule TypedStructApiSpexTest do
         field :a_non_negative_integer, non_neg_integer()
         field :a_positive_integer, pos_integer()
         field :a_float, float()
+        field :a_number, number()
         field :a_map, map()
         field :a_boolean, boolean()
         field :any_list, list()
@@ -86,6 +107,9 @@ defmodule TypedStructApiSpexTest do
                    minimum: 1
                  },
                  a_float: %Schema{
+                   type: :number
+                 },
+                 a_number: %Schema{
                    type: :number
                  },
                  a_map: %Schema{
@@ -283,16 +307,6 @@ defmodule TypedStructApiSpexTest do
   end
 
   describe "struct with another struct as a field" do
-    defmodule NestedOne do
-      use TypedStruct
-
-      typedstruct do
-        plugin TypedStructApiSpex
-
-        field :a_string, String.t()
-      end
-    end
-
     defmodule WithoutPlugin do
       use TypedStruct
 
@@ -307,7 +321,7 @@ defmodule TypedStructApiSpexTest do
       typedstruct do
         plugin TypedStructApiSpex
 
-        field :a_struct, NestedOne.t()
+        field :a_struct, StructWithSchemaA.t()
         field :a_struct_without_schema, WithoutPlugin.t()
         field :a_missing_module, IAmMissing.t()
       end
@@ -315,7 +329,7 @@ defmodule TypedStructApiSpexTest do
 
     test "translates types correctly" do
       assert WithNested.schema().properties == %{
-               a_struct: NestedOne,
+               a_struct: StructWithSchemaA,
                a_struct_without_schema: %Schema{},
                a_missing_module: %Schema{}
              }
@@ -323,23 +337,13 @@ defmodule TypedStructApiSpexTest do
   end
 
   describe "struct with another struct as a component of list" do
-    defmodule Simple do
-      use TypedStruct
-
-      typedstruct do
-        plugin TypedStructApiSpex
-
-        field :a_string, String.t()
-      end
-    end
-
     defmodule WithList do
       use TypedStruct
 
       typedstruct do
         plugin TypedStructApiSpex
 
-        field :a_list_of_structs, [Simple.t()]
+        field :a_list_of_structs, [StructWithSchemaA.t()]
       end
     end
 
@@ -347,35 +351,25 @@ defmodule TypedStructApiSpexTest do
       assert WithList.schema().properties == %{
                a_list_of_structs: %Schema{
                  type: :array,
-                 items: Simple
+                 items: StructWithSchemaA
                }
              }
     end
   end
 
   describe "struct with another struct as a component of nested map" do
-    defmodule SimpleOne do
+    defmodule ComplexField do
       use TypedStruct
 
       typedstruct do
         plugin TypedStructApiSpex
 
-        field :a_string, String.t()
-      end
-    end
-
-    defmodule ComplexOne do
-      use TypedStruct
-
-      typedstruct do
-        plugin TypedStructApiSpex
-
-        field :a_complex_field, %{a: String.t(), b: %{x: integer(), y: SimpleOne.t()}}
+        field :a_complex_field, %{a: String.t(), b: %{x: integer(), y: StructWithSchemaA.t()}}
       end
     end
 
     test "translates types correctly" do
-      assert ComplexOne.schema().properties == %{
+      assert ComplexField.schema().properties == %{
                a_complex_field: %Schema{
                  type: :object,
                  required: [:a, :b],
@@ -386,7 +380,7 @@ defmodule TypedStructApiSpexTest do
                      required: [:x, :y],
                      properties: %{
                        x: %Schema{type: :integer},
-                       y: SimpleOne
+                       y: StructWithSchemaA
                      }
                    }
                  }
@@ -396,35 +390,17 @@ defmodule TypedStructApiSpexTest do
   end
 
   describe "struct with complex enums" do
-    defmodule SimpleA do
-      use TypedStruct
-
-      typedstruct do
-        plugin TypedStructApiSpex
-
-        field :a_string, String.t()
-      end
-    end
-
-    defmodule SimpleB do
-      use TypedStruct
-
-      typedstruct do
-        plugin TypedStructApiSpex
-
-        field :a_string, String.t()
-      end
-    end
-
     defmodule ComplexEnums do
       use TypedStruct
 
       typedstruct do
         plugin TypedStructApiSpex
 
-        field :an_enum_of_structs, SimpleA.t() | SimpleB.t()
-        field :a_list_with_enum_of_structs, [SimpleA.t() | SimpleB.t()]
-        field :an_enum_with_structs_and_maps, SimpleA.t() | SimpleB.t() | %{a: number()}
+        field :an_enum_of_structs, StructWithSchemaA.t() | StructWithSchemaB.t()
+        field :a_list_with_enum_of_structs, [StructWithSchemaA.t() | StructWithSchemaB.t()]
+
+        field :an_enum_with_structs_and_maps,
+              StructWithSchemaA.t() | StructWithSchemaB.t() | %{a: number()}
       end
     end
 
@@ -432,20 +408,20 @@ defmodule TypedStructApiSpexTest do
       assert ComplexEnums.schema().properties == %{
                an_enum_of_structs: %Schema{
                  type: :object,
-                 oneOf: [SimpleA, SimpleB]
+                 oneOf: [StructWithSchemaA, StructWithSchemaB]
                },
                a_list_with_enum_of_structs: %Schema{
                  type: :array,
                  items: %Schema{
                    type: :object,
-                   oneOf: [SimpleA, SimpleB]
+                   oneOf: [StructWithSchemaA, StructWithSchemaB]
                  }
                },
                an_enum_with_structs_and_maps: %Schema{
                  type: :object,
                  oneOf: [
-                   SimpleA,
-                   SimpleB,
+                   StructWithSchemaA,
+                   StructWithSchemaB,
                    %Schema{
                      type: :object,
                      required: [:a],
