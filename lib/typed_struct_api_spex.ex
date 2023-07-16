@@ -25,7 +25,7 @@ defmodule TypedStructApiSpex do
   def field(field_name, type, opts, env) do
     module_name = env.module |> inspect()
 
-    schema =
+    base_schema =
       Keyword.get(opts, :schema) ||
         case TypeToSchema.transform(type, env) do
           {:ok, schema} ->
@@ -61,8 +61,22 @@ defmodule TypedStructApiSpex do
             %Schema{}
         end
 
+    schema =
+      base_schema
+      |> set_if_option_present(:description, opts)
+
     quote do
       @typed_struct_api_spex_fields {unquote(field_name), unquote(Macro.escape(schema))}
+    end
+  end
+
+  defp set_if_option_present(schema, key, opts) do
+    value = Keyword.get(opts, key)
+
+    if value do
+      %{schema | key => value}
+    else
+      schema
     end
   end
 

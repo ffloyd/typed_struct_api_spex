@@ -434,4 +434,21 @@ defmodule TypedStructApiSpexTest do
              }
     end
   end
+
+  describe "struct with field description" do
+    defmodule WithDescription do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :with_description, String.t(), description: "A field description"
+      end
+    end
+
+    test "uses provided description" do
+      assert %Schema{properties: %{with_description: %Schema{description: "A field description"}}} =
+               WithDescription.schema()
+    end
+  end
 end
