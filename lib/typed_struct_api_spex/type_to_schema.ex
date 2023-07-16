@@ -39,6 +39,7 @@ defmodule TypedStructApiSpex.TypeToSchema do
   def transform({:non_neg_integer, _, []}, _), do: {:ok, %Schema{type: :integer, minimum: 0}}
   def transform({:pos_integer, _, []}, _), do: {:ok, %Schema{type: :integer, minimum: 1}}
   def transform({:float, _, []}, _), do: {:ok, %Schema{type: :number}}
+  def transform({:number, _, []}, _), do: {:ok, %Schema{type: :number}}
 
   def transform({:boolean, _, []}, _), do: {:ok, %Schema{type: :boolean}}
 
@@ -110,24 +111,34 @@ defmodule TypedStructApiSpex.TypeToSchema do
   #
   # Enums
   #
-  def transform({:|, _, _} = ast, _) do
+  def transform({:|, _, _} = ast, env) do
     ast_list = flat_pipe(ast)
 
-    if Enum.all?(ast_list, &is_atom/1) do
-      list =
-        ast_list
-        |> Enum.map(fn
-          nil -> nil
-          atom -> to_string(atom)
-        end)
+    cond do
+      Enum.all?(ast_list, &is_atom/1) ->
+        list =
+          ast_list
+          |> Enum.map(fn
+            nil -> nil
+            atom -> to_string(atom)
+          end)
 
-      {:ok,
-       %Schema{
-         type: :string,
-         enum: list
-       }}
-    else
-      {:error, Macro.to_string(ast)}
+        {:ok,
+         %Schema{
+           type: :string,
+           enum: list
+         }}
+
+      Enum.all?(ast_list, &(is_mod_name_t_ast(&1) or is_map_ast(&1))) ->
+        to_one_of_schema(ast_list, env)
+
+      true ->
+        only_in_test do
+          # credo:disable-for-next-line
+          IO.inspect(ast, label: "unhandled type AST", syntax_colors: IO.ANSI.syntax_colors())
+        end
+
+        {:error, Macro.to_string(ast)}
     end
   end
 
@@ -210,4 +221,34 @@ defmodule TypedStructApiSpex.TypeToSchema do
   end
 
   defp flat_pipe(ast), do: [ast]
+
+  defp to_one_of_schema(type_ast_list, env) do
+    list_or_error =
+      Enum.reduce_while(type_ast_list, [], fn ast, list ->
+        case transform(ast, env) do
+          {:ok, schema} -> {:cont, list ++ [schema]}
+          error -> {:halt, error}
+        end
+      end)
+
+    case list_or_error do
+      list when is_list(list) ->
+        {:ok,
+         %Schema{
+           type: :object,
+           oneOf: list
+         }}
+
+      error ->
+        error
+    end
+  end
+
+  defp is_mod_name_t_ast(ast)
+  defp is_mod_name_t_ast({{:., _, [{:__aliases__, _, [_]}, :t]}, _, []}), do: true
+  defp is_mod_name_t_ast(_), do: false
+
+  defp is_map_ast(ast)
+  defp is_map_ast({:%{}, _, _}), do: true
+  defp is_map_ast(_), do: false
 end

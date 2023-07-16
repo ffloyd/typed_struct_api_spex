@@ -354,7 +354,7 @@ defmodule TypedStructApiSpexTest do
   end
 
   describe "struct with another struct as a component of nested map" do
-    defmodule Simple do
+    defmodule SimpleOne do
       use TypedStruct
 
       typedstruct do
@@ -370,7 +370,7 @@ defmodule TypedStructApiSpexTest do
       typedstruct do
         plugin TypedStructApiSpex
 
-        field :a_complex_field, %{a: String.t(), b: %{x: integer(), y: Simple.t()}}
+        field :a_complex_field, %{a: String.t(), b: %{x: integer(), y: SimpleOne.t()}}
       end
     end
 
@@ -386,10 +386,74 @@ defmodule TypedStructApiSpexTest do
                      required: [:x, :y],
                      properties: %{
                        x: %Schema{type: :integer},
-                       y: Simple
+                       y: SimpleOne
                      }
                    }
                  }
+               }
+             }
+    end
+  end
+
+  describe "struct with complex enums" do
+    defmodule SimpleA do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :a_string, String.t()
+      end
+    end
+
+    defmodule SimpleB do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :a_string, String.t()
+      end
+    end
+
+    defmodule ComplexEnums do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :an_enum_of_structs, SimpleA.t() | SimpleB.t()
+        field :a_list_with_enum_of_structs, [SimpleA.t() | SimpleB.t()]
+        field :an_enum_with_structs_and_maps, SimpleA.t() | SimpleB.t() | %{a: number()}
+      end
+    end
+
+    test "transaltes types correctly" do
+      assert ComplexEnums.schema().properties == %{
+               an_enum_of_structs: %Schema{
+                 type: :object,
+                 oneOf: [SimpleA, SimpleB]
+               },
+               a_list_with_enum_of_structs: %Schema{
+                 type: :array,
+                 items: %Schema{
+                   type: :object,
+                   oneOf: [SimpleA, SimpleB]
+                 }
+               },
+               an_enum_with_structs_and_maps: %Schema{
+                 type: :object,
+                 oneOf: [
+                   SimpleA,
+                   SimpleB,
+                   %Schema{
+                     type: :object,
+                     required: [:a],
+                     properties: %{
+                       a: %Schema{type: :number}
+                     }
+                   }
+                 ]
                }
              }
     end
