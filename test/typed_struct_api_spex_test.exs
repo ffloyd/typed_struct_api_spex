@@ -1,6 +1,8 @@
 defmodule TypedStructApiSpexTest do
   use ExUnit.Case, async: true
 
+  doctest TypedStructApiSpex
+
   alias OpenApiSpex.Schema
 
   defmodule StructWithSchemaA do

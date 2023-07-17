@@ -1,6 +1,6 @@
 # TypedStructApiSpex
 
-**TODO: Add description**
+A plugin for `typed_struct` for generating `open_api_spex` schema from type definitions.
 
 ## Installation
 
