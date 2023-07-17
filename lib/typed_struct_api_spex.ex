@@ -64,6 +64,7 @@ defmodule TypedStructApiSpex do
     schema =
       base_schema
       |> set_if_option_present(:description, opts)
+      |> set_if_option_present(:default, opts)
 
     quote do
       @typed_struct_api_spex_fields {unquote(field_name), unquote(Macro.escape(schema))}

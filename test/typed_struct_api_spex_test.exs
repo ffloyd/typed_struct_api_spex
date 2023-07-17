@@ -451,4 +451,28 @@ defmodule TypedStructApiSpexTest do
                WithDescription.schema()
     end
   end
+
+  describe "use default values in schema" do
+    defmodule WithDefaults do
+      use TypedStruct
+
+      typedstruct do
+        plugin TypedStructApiSpex
+
+        field :a_string, String.t(), default: "some value"
+        field :a_number, number(), default: 1.23
+      end
+    end
+
+    test "uses defaults in schema" do
+      assert %{
+               a_string: %Schema{
+                 default: "some value"
+               },
+               a_number: %Schema{
+                 default: 1.23
+               }
+             } = WithDefaults.schema().properties
+    end
+  end
 end
