@@ -2,13 +2,13 @@ defmodule TypedStructApiSpex do
   @moduledoc """
   A plugin for `typed_struct` for generating `open_api_spex` schema from type definitions.
 
-  ## Examples
+  ## Basic example
 
   iex> defmodule MyStruct do
   ...>   use TypedStruct
   ...>
   ...>   typedstruct do
-  ...>     plugin TypedStructApiSpex, title: "My Struct"
+  ...>     plugin TypedStructApiSpex
   ...>
   ...>     field :a_field, String.t()
   ...>   end
@@ -16,10 +16,11 @@ defmodule TypedStructApiSpex do
   ...>
   ...> MyStruct.schema()
   %OpenApiSpex.Schema{
-    title: "My Struct",
+    title: "MyStruct",
     type: :object,
     required: [],
-    properties: %{a_field: %OpenApiSpex.Schema{type: :string}}
+    properties: %{a_field: %OpenApiSpex.Schema{type: :string}},
+    "x-struct": MyStruct
   }
   """
   use TypedStruct.Plugin
@@ -34,13 +35,16 @@ defmodule TypedStructApiSpex do
   @spec init(keyword()) :: Macro.t()
   defmacro init(opts) do
     title = Keyword.get(opts, :title)
-    
-    quote do
-      @behaviour OpenApiSpex.Schema
+    derive? = Keyword.get(opts, :derive?, true)
 
+    quote do
       Module.register_attribute(__MODULE__, :typed_struct_api_spex_fields, accumulate: true)
 
-      @typed_struct_api_spex_title unquote(title) || inspect(__MODULE__)
+      @typed_struct_api_spex_title unquote(title)
+
+      if unquote(derive?) do
+        @derive Enum.filter([Poison.Encoder, Jason.Encoder], &Code.ensure_loaded?/1)
+      end
     end
   end
 
@@ -109,16 +113,20 @@ defmodule TypedStructApiSpex do
   @spec after_definition(opts :: keyword()) :: Macro.t()
   def after_definition(_opts) do
     quote do
-      @impl OpenApiSpex.Schema
-      def schema do
-        %OpenApiSpex.Schema{
+      require OpenApiSpex
+
+      OpenApiSpex.schema(
+        %{
           title: @typed_struct_api_spex_title,
           type: :object,
           description: @moduledoc,
           required: @enforce_keys,
-          properties: Map.new(@typed_struct_api_spex_fields)
-        }
-      end
+          properties: Map.new(@typed_struct_api_spex_fields),
+          "x-struct": __MODULE__
+        },
+        struct?: false,
+        derive?: false
+      )
     end
   end
 end

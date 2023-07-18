@@ -40,7 +40,7 @@ defmodule TypedStructApiSpexTest do
     end
 
     test "sets title to struct name" do
-      assert %Schema{title: "TypedStructApiSpexTest.OneStringField"} = OneStringField.schema()
+      assert %Schema{title: "OneStringField"} = OneStringField.schema()
     end
 
     test "creates an object schema" do
@@ -57,6 +57,10 @@ defmodule TypedStructApiSpexTest do
                  a_field: %Schema{type: :string}
                }
              } = OneStringField.schema()
+    end
+
+    test "derives Jason.Encoder implementation" do
+      assert %OneStringField{a_field: "string"} |> Jason.encode!()
     end
   end
 
