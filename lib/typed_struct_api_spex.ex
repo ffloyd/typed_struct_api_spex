@@ -4,24 +4,24 @@ defmodule TypedStructApiSpex do
 
   ## Basic example
 
-  iex> defmodule MyStruct do
-  ...>   use TypedStruct
-  ...>
-  ...>   typedstruct do
-  ...>     plugin TypedStructApiSpex
-  ...>
-  ...>     field :a_field, String.t()
-  ...>   end
-  ...> end
-  ...>
-  ...> MyStruct.schema()
-  %OpenApiSpex.Schema{
-    title: "MyStruct",
-    type: :object,
-    required: [],
-    properties: %{a_field: %OpenApiSpex.Schema{type: :string}},
-    "x-struct": MyStruct
-  }
+      iex> defmodule MyStruct do
+      ...>   use TypedStruct
+      ...>
+      ...>   typedstruct do
+      ...>     plugin TypedStructApiSpex
+      ...>
+      ...>     field :a_field, String.t()
+      ...>   end
+      ...> end
+      ...>
+      ...> MyStruct.schema()
+      %OpenApiSpex.Schema{
+        title: "MyStruct",
+        type: :object,
+        required: [],
+        properties: %{a_field: %OpenApiSpex.Schema{type: :string}},
+        "x-struct": MyStruct
+      }
   """
   use TypedStruct.Plugin
 
