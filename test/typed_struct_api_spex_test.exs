@@ -48,7 +48,7 @@ defmodule TypedStructApiSpexTest do
     end
 
     test "sets description to moduledoc content" do
-      assert %Schema{description: "OneStringField struct moduledoc\n"} = OneStringField.schema()
+      assert %Schema{description: "OneStringField struct moduledoc"} = OneStringField.schema()
     end
 
     test "creates a property with string type" do

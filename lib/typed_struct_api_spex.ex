@@ -2,7 +2,7 @@ defmodule TypedStructApiSpex do
   @moduledoc """
   A plugin for `typed_struct` for generating `open_api_spex` schema from type definitions.
 
-  ## Basic example
+  Example:
 
       iex> defmodule MyStruct do
       ...>   use TypedStruct
@@ -21,6 +21,32 @@ defmodule TypedStructApiSpex do
         required: [],
         properties: %{a_field: %OpenApiSpex.Schema{type: :string}},
         "x-struct": MyStruct
+      }
+
+  Moduledoc will be used as a schema description and you can explicitly set schema title:
+
+      iex> defmodule WithModuledoc do
+      ...>   @moduledoc \"""
+      ...>   A description of the stuct
+      ...>   that contains 2 lines.
+      ...>   \"""
+      ...>   use TypedStruct
+      ...>
+      ...>   typedstruct do
+      ...>     plugin TypedStructApiSpex, title: "Struct with moduledoc"
+      ...>
+      ...>     field :a_field, String.t()
+      ...>   end
+      ...> end
+      ...>
+      ...> WithModuledoc.schema()
+      %OpenApiSpex.Schema{
+        title: "Struct with moduledoc",
+        description: "A description of the stuct\\nthat contains 2 lines.",
+        type: :object,
+        required: [],
+        properties: %{a_field: %OpenApiSpex.Schema{type: :string}},
+        "x-struct": WithModuledoc
       }
   """
   use TypedStruct.Plugin
@@ -115,11 +141,15 @@ defmodule TypedStructApiSpex do
     quote do
       require OpenApiSpex
 
+      description = if @moduledoc do
+        @moduledoc |> String.trim()
+      end
+
       OpenApiSpex.schema(
         %{
           title: @typed_struct_api_spex_title,
           type: :object,
-          description: @moduledoc,
+          description: description,
           required: @enforce_keys,
           properties: Map.new(@typed_struct_api_spex_fields),
           "x-struct": __MODULE__
